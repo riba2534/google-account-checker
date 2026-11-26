@@ -1,0 +1,9 @@
+# Copy to .dev.vars for `wrangler dev` (never commit .dev.vars).
+# Production: set each with `npx wrangler secret put <NAME>`.
+
+# Comma-separated usernames reserved for administrators before registration.
+ADMIN_USERNAMES=
+# Optional. When set, registration requires this invite code.
+INVITE_CODE=
+# Required to register a reserved administrator. Use a separate, private code.
+ADMIN_BOOTSTRAP_CODE=
