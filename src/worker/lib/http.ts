@@ -44,7 +44,10 @@ export async function readJson<T>(c: Context): Promise<T> {
 
 /** ?page=&pageSize= with sane bounds. */
 export function pageParams(c: Context, defaultSize = 20, maxSize = 200) {
-  const page = Math.max(1, Number.parseInt(c.req.query("page") ?? "1", 10) || 1);
+  const rawPage = Number(c.req.query("page") ?? "1");
+  const page = Number.isSafeInteger(rawPage) && rawPage > 0 && rawPage <= Number.MAX_SAFE_INTEGER / maxSize
+    ? rawPage
+    : 1;
   const raw = Number.parseInt(c.req.query("pageSize") ?? String(defaultSize), 10) || defaultSize;
   const pageSize = Math.min(maxSize, Math.max(1, raw));
   return { page, pageSize, offset: (page - 1) * pageSize };

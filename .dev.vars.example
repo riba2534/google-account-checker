@@ -1,15 +1,9 @@
 # Copy to .dev.vars for `wrangler dev` (never commit .dev.vars).
 # Production: set each with `npx wrangler secret put <NAME>`.
 
-# DeepSeek Anthropic-compatible API key used by the AI parse fallback.
-DEEPSEEK_API_KEY=
-# OAuth client of the Antigravity IDE (installed-app client). Required to refresh tokens.
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-# 32 random bytes, base64. Encrypts stored card credentials (AES-GCM).
-#   openssl rand -base64 32
-CARD_ENCRYPTION_KEY=
-# Comma-separated usernames that become admins on register/login.
+# Comma-separated usernames reserved for administrators before registration.
 ADMIN_USERNAMES=
 # Optional. When set, registration requires this invite code.
 INVITE_CODE=
+# Required to register a reserved administrator. Use a separate, private code.
+ADMIN_BOOTSTRAP_CODE=

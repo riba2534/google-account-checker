@@ -216,6 +216,11 @@ export interface CardDTO {
   createdAt: number;
 }
 
+export type CardActivityDTO = Pick<
+  CardDTO,
+  "id" | "taskId" | "idx" | "state" | "category" | "createdAt" | "checkedAt"
+>;
+
 export interface Page<T> {
   items: T[];
   total: number;
