@@ -85,8 +85,8 @@ export function Pagination({ data, onPage }: { data: Page<unknown>; onPage: (pag
   const pages = Math.max(1, Math.ceil(data.total / data.pageSize));
   return <footer className="pagination">
     <span>共 {numberFormat.format(data.total)} 条</span>
-    {pages > 1 && <nav aria-label="分页">
-      <button className="button button-secondary" disabled={data.page <= 1} onClick={() => onPage(data.page - 1)}>上一页</button>
+    {(pages > 1 || data.page > 1) && <nav aria-label="分页">
+      <button className="button button-secondary" disabled={data.page <= 1} onClick={() => onPage(Math.min(data.page - 1, pages))}>上一页</button>
       <span>{data.page} / {pages}</span>
       <button className="button button-secondary" disabled={data.page >= pages} onClick={() => onPage(data.page + 1)}>下一页</button>
     </nav>}

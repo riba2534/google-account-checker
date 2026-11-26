@@ -1,10 +1,9 @@
 import { Link, useParams } from "react-router";
 import { CATEGORY_INFO, STATE_LABELS } from "../shared/types";
-import type { CardDTO, Page, TaskDTO, TaskDetailResponse } from "../shared/types";
+import type { CardActivityDTO, Page, TaskDTO, TaskDetailResponse } from "../shared/types";
 import { useResource } from "./api";
 import { Badge, categoryText, dateText, Empty, Heading, Metrics, Notice, Pagination, taskLabels, useFilters } from "./components";
 
-type Activity = Pick<CardDTO, "id" | "taskId" | "idx" | "state" | "category" | "createdAt" | "checkedAt">;
 const stateOptions = Object.entries(STATE_LABELS);
 const taskOptions = Object.entries(taskLabels);
 const categoryOptions = Object.entries(CATEGORY_INFO);
@@ -58,7 +57,7 @@ export function TaskList({ admin = false }: { admin?: boolean }) {
 function ActivityList({ taskId, poll }: { taskId?: string; poll?: boolean }) {
   const filters = useFilters();
   const path = taskId ? "/tasks/" + encodeURIComponent(taskId) + "/cards" : "/cards";
-  const { data, error, reload } = useResource<Page<Activity>>(path + filters.query(...(taskId ? ["state", "category"] : ["state"])), poll);
+  const { data, error, reload } = useResource<Page<CardActivityDTO>>(path + filters.query(...(taskId ? ["state", "category"] : ["state"])), poll);
 
   return <section className="panel">
     <div className="panel-header">

@@ -94,7 +94,7 @@ function CredentialsForm({ onUser, registration }: { onUser: (user: UserDTO) => 
     {registration && <p className="form-hint">密码须为 {PASSWORD_MIN}–{PASSWORD_MAX} 个字符。</p>}
     {registration?.inviteRequired && <label className="field">
       <span>邀请码</span>
-      <input name="inviteCode" required autoComplete="off" />
+      <input type="password" name="inviteCode" required autoComplete="off" />
     </label>}
     <Notice message={error} />
     <button className="button button-primary" disabled={submitting}>{submitting ? "正在提交…" : registration ? "注册" : "登录"}</button>

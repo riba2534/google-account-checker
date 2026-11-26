@@ -23,7 +23,7 @@ export async function request<T>(path: string, options: { body?: object; signal?
   if (!response.ok) {
     const data: ApiError | undefined = await response.json().catch(() => undefined);
     const sessionEnded = response.status === 401 || data?.error?.code === "banned";
-    if (sessionEnded && (!path.startsWith("/auth/") || path === "/auth/password")) {
+    if (!signal?.aborted && sessionEnded && (!path.startsWith("/auth/") || path === "/auth/password")) {
       window.dispatchEvent(new Event(SESSION_ENDED));
     }
     throw new RequestError(response.status, data?.error?.message ?? "请求失败，请重试。");
