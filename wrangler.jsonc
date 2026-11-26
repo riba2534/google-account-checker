@@ -1,0 +1,40 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "google-account-checker",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-11-20",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "agy-checker-db",
+      // Placeholder for local dev. Replace with the id printed by `wrangler d1 create` before deploying.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "queues": {
+    "producers": [{ "binding": "CHECK_QUEUE", "queue": "agy-check-jobs" }],
+    "consumers": [
+      {
+        "queue": "agy-check-jobs",
+        // 4 cards per batch x 2 concurrent consumers keeps at most 8 accounts in flight;
+        // Google starts rate limiting above that.
+        "max_batch_size": 4,
+        "max_batch_timeout": 2,
+        "max_retries": 3,
+        "max_concurrency": 2
+      }
+    ]
+  },
+  "vars": {
+    "DEEPSEEK_BASE_URL": "https://api.deepseek.com/anthropic",
+    "DEEPSEEK_MODEL": "deepseek-flash"
+  },
+  "observability": { "enabled": true }
+}
