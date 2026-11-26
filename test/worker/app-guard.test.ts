@@ -55,3 +55,12 @@ describe("central route guards", () => {
     expect(res.headers.get("Cache-Control")).toBe("no-store");
   });
 });
+
+describe("error handling", () => {
+  it("HttpError thrown from a route becomes the ApiError shape", async () => {
+    const { app } = await import("../../src/worker/app");
+    const res = await app.request("/api/auth/config-not-real", {}, env);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({ error: { code: "not_found" } });
+  });
+});

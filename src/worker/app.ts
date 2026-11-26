@@ -1,4 +1,4 @@
-import { Hono, type MiddlewareHandler } from "hono";
+import { type Context, Hono, type MiddlewareHandler } from "hono";
 import type { AppEnv } from "./env";
 import { HttpError, errorResponse } from "./lib/http";
 import { csrfGuard, requireAdmin, requireUser } from "./lib/session";
@@ -37,14 +37,18 @@ api.route("/tasks", taskRoutes);
 api.route("/cards", cardRoutes);
 api.route("/admin", adminRoutes);
 
-api.notFound((c) => errorResponse(c, "not_found", "接口不存在"));
-api.onError((err, c) => {
+// A mounted sub-app's notFound is not consulted, so terminate /api explicitly.
+api.all("*", (c) => errorResponse(c, "not_found", "接口不存在"));
+
+const onError = (err: Error, c: Context<AppEnv>) => {
   if (err instanceof HttpError) return errorResponse(c, err.code, err.message);
   console.error("unhandled", err);
   return errorResponse(c, "internal", "服务器内部错误");
-});
+};
+api.onError(onError);
 
 export const app = new Hono<AppEnv>();
+app.onError(onError);
 app.route("/api", api);
 // Static assets are served before the Worker runs; this only sees misses outside /api.
 app.all("*", (c) => c.env.ASSETS.fetch(c.req.raw));

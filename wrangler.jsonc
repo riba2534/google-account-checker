@@ -36,5 +36,24 @@
     "DEEPSEEK_BASE_URL": "https://api.deepseek.com/anthropic",
     "DEEPSEEK_MODEL": "deepseek-flash"
   },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  "env": {
+    // Used by vitest only: same bindings but no queue consumer, so tests drive handleQueue
+    // directly and nothing ever reaches Google.
+    "test": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "agy-checker-db",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "queues": { "producers": [{ "binding": "CHECK_QUEUE", "queue": "agy-check-jobs" }] },
+      "vars": {
+        "DEEPSEEK_BASE_URL": "https://api.deepseek.com/anthropic",
+        "DEEPSEEK_MODEL": "deepseek-flash"
+      }
+    }
+  }
 }
