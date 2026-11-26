@@ -2,7 +2,7 @@
 
 import type { Context, MiddlewareHandler } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
-import type { Role, UserStatus } from "../../shared/types";
+import type { Role, UserDTO, UserStatus } from "../../shared/types";
 import type { AppEnv, SessionUser } from "../env";
 import { randomToken, sha256Hex } from "./crypto";
 import { errorResponse } from "./http";
@@ -22,21 +22,44 @@ function cookieOptions(c: Context, maxAgeSec: number) {
   };
 }
 
-/** Create a session row and set the cookie. */
-export async function startSession(c: Context<AppEnv>, userId: number): Promise<void> {
+/** Create a session only if the verified password and active status still match. */
+export async function startSession(
+  c: Context<AppEnv>,
+  userId: number,
+  passwordHash: string,
+  loginAttemptKey?: string,
+): Promise<number | null> {
   const token = randomToken();
   const now = Date.now();
-  await c.env.DB.prepare("INSERT INTO sessions (id, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)")
-    .bind(await sha256Hex(token), userId, now, now + SESSION_TTL_MS)
-    .run();
+  const db = c.env.DB;
+  const statements = [
+    db.prepare(
+      "UPDATE users SET last_login_at = max(coalesce(last_login_at, 0), ?) WHERE id = ? AND status = 'active' AND password_hash = ?",
+    ).bind(now, userId, passwordHash),
+    db.prepare(
+      `INSERT INTO sessions (id, user_id, created_at, expires_at)
+       SELECT ?, id, ?, ? FROM users WHERE id = ? AND status = 'active' AND password_hash = ?`,
+    ).bind(await sha256Hex(token), now, now + SESSION_TTL_MS, userId, passwordHash),
+  ];
+  if (loginAttemptKey) {
+    statements.push(db.prepare(
+      `DELETE FROM login_attempts WHERE key = ?
+       AND EXISTS (SELECT 1 FROM users WHERE id = ? AND status = 'active' AND password_hash = ?)`,
+    ).bind(loginAttemptKey, userId, passwordHash));
+  }
+  const [, inserted] = await db.batch(statements);
+  if (inserted.meta.changes !== 1) return null;
   setCookie(c, SESSION_COOKIE, token, cookieOptions(c, SESSION_TTL_MS / 1000));
+  return now;
 }
 
 /** Delete the current session (if any) and clear the cookie. */
 export async function endSession(c: Context<AppEnv>): Promise<void> {
   const token = getCookie(c, SESSION_COOKIE);
-  if (token) await c.env.DB.prepare("DELETE FROM sessions WHERE id = ?").bind(await sha256Hex(token)).run();
-  deleteCookie(c, SESSION_COOKIE, { path: "/" });
+  if (token && token.length <= 128) {
+    await c.env.DB.prepare("DELETE FROM sessions WHERE id = ?").bind(await sha256Hex(token)).run();
+  }
+  deleteCookie(c, SESSION_COOKIE, cookieOptions(c, 0));
 }
 
 /** Drop every session of a user, e.g. after a ban or a password change. */
@@ -48,15 +71,29 @@ export async function revokeUserSessions(db: D1Database, userId: number, exceptS
   }
 }
 
-interface SessionRow {
-  session_id: string;
-  expires_at: number;
+export interface UserRow {
   id: number;
   username: string;
   role: Role;
   status: UserStatus;
   created_at: number;
   last_login_at: number | null;
+}
+
+export function toUserDTO(row: UserRow): UserDTO {
+  return {
+    id: row.id,
+    username: row.username,
+    role: row.role,
+    status: row.status,
+    createdAt: row.created_at,
+    lastLoginAt: row.last_login_at,
+  };
+}
+
+interface SessionRow extends UserRow {
+  session_id: string;
+  expires_at: number;
 }
 
 /** Resolve the cookie to a user, or null. Expired sessions are deleted on sight. */
@@ -80,15 +117,7 @@ export async function loadSessionUser(c: Context<AppEnv>): Promise<SessionUser |
     await c.env.DB.prepare("UPDATE sessions SET expires_at = ? WHERE id = ?").bind(now + SESSION_TTL_MS, sid).run();
     setCookie(c, SESSION_COOKIE, token, cookieOptions(c, SESSION_TTL_MS / 1000));
   }
-  return {
-    id: row.id,
-    username: row.username,
-    role: row.role,
-    status: row.status,
-    createdAt: row.created_at,
-    lastLoginAt: row.last_login_at,
-    sessionId: row.session_id,
-  };
+  return { ...toUserDTO(row), sessionId: row.session_id };
 }
 
 /** 401 unless logged in; 403 `banned` (and sessions revoked) for banned users. Sets c.var.user. */
@@ -97,7 +126,7 @@ export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!user) return errorResponse(c, "unauthorized", "请先登录");
   if (user.status === "banned") {
     await revokeUserSessions(c.env.DB, user.id);
-    deleteCookie(c, SESSION_COOKIE, { path: "/" });
+    deleteCookie(c, SESSION_COOKIE, cookieOptions(c, 0));
     return errorResponse(c, "banned", "账号已被封禁");
   }
   c.set("user", user);

@@ -14,8 +14,10 @@ export interface Env {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   CARD_ENCRYPTION_KEY?: string;
-  /** Comma-separated usernames granted admin on register/login. */
+  /** Comma-separated usernames reserved for administrator registration. */
   ADMIN_USERNAMES?: string;
+  /** Separate invite code for creating accounts with reserved usernames. */
+  ADMIN_BOOTSTRAP_CODE?: string;
   /** When non-empty, registration requires this code. */
   INVITE_CODE?: string;
 }
