@@ -45,9 +45,10 @@ adminRoutes.post("/users/:id/status", async (c) => {
   const { DB } = c.env;
   const statements = [
     DB.prepare(`UPDATE users SET status = ? WHERE id = ? AND EXISTS (
-      SELECT 1 FROM users WHERE id = ? AND role = 'admin' AND status = 'active'
+      SELECT 1 FROM users u JOIN sessions s ON s.user_id = u.id
+      WHERE u.id = ? AND u.role = 'admin' AND u.status = 'active' AND s.id = ? AND s.expires_at > ?
     ) RETURNING id, username, role, status, created_at AS createdAt, last_login_at AS lastLoginAt`)
-      .bind(status, id, actorId),
+      .bind(status, id, actorId, c.var.user.sessionId, Date.now()),
   ];
   if (status === "banned") {
     statements.push(DB.prepare(`DELETE FROM sessions WHERE user_id = ? AND EXISTS (

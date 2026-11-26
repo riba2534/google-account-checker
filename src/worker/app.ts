@@ -19,10 +19,7 @@ api.use("*", csrfGuard);
 
 /** Apply middleware to a prefix and everything under it. */
 function guard(prefix: string, ...mw: MiddlewareHandler<AppEnv>[]) {
-  for (const m of mw) {
-    api.use(prefix, m);
-    api.use(`${prefix}/*`, m);
-  }
+  api.use(`${prefix}/*`, ...mw);
 }
 
 // Everything except /api/auth requires a session; /api/admin also requires the admin role.

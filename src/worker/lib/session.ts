@@ -62,15 +62,6 @@ export async function endSession(c: Context<AppEnv>): Promise<void> {
   deleteCookie(c, SESSION_COOKIE, cookieOptions(c, 0));
 }
 
-/** Drop every session of a user, e.g. after a ban or a password change. */
-export async function revokeUserSessions(db: D1Database, userId: number, exceptSessionId?: string): Promise<void> {
-  if (exceptSessionId) {
-    await db.prepare("DELETE FROM sessions WHERE user_id = ? AND id != ?").bind(userId, exceptSessionId).run();
-  } else {
-    await db.prepare("DELETE FROM sessions WHERE user_id = ?").bind(userId).run();
-  }
-}
-
 export interface UserRow {
   id: number;
   username: string;
@@ -125,7 +116,9 @@ export const requireUser: MiddlewareHandler<AppEnv> = async (c, next) => {
   const user = await loadSessionUser(c);
   if (!user) return errorResponse(c, "unauthorized", "请先登录");
   if (user.status === "banned") {
-    await revokeUserSessions(c.env.DB, user.id);
+    await c.env.DB.prepare(`DELETE FROM sessions WHERE user_id = ? AND EXISTS (
+      SELECT 1 FROM users WHERE id = ? AND status = 'banned'
+    )`).bind(user.id, user.id).run();
     deleteCookie(c, SESSION_COOKIE, cookieOptions(c, 0));
     return errorResponse(c, "banned", "账号已被封禁");
   }

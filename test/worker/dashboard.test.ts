@@ -1,5 +1,6 @@
 import { env, exports } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
+import { app } from "../../src/worker/app";
 import { randomToken, sha256Hex } from "../../src/worker/lib/crypto";
 import { SESSION_COOKIE } from "../../src/worker/lib/session";
 
@@ -119,5 +120,24 @@ describe("site administration", () => {
       user: { status: "active" },
     });
     expect((await call("/tasks", user.cookie)).status).toBe(401);
+  });
+
+  it("prevents moderation if the actor session is revoked before the write", async () => {
+    const admin = await createUser("revoked_admin", "admin");
+    const user = await createUser("revoked_target");
+    const DB = {
+      prepare: env.DB.prepare.bind(env.DB),
+      async batch(statements: D1PreparedStatement[]) {
+        await env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(admin.id).run();
+        return env.DB.batch(statements);
+      },
+    } as D1Database;
+    const response = await app.request(`/api/admin/users/${user.id}/status`, {
+      method: "POST",
+      headers: { Cookie: admin.cookie, "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "banned" }),
+    }, { ...env, DB });
+    expect(response.status).toBe(404);
+    expect((await call("/tasks", user.cookie)).status).toBe(200);
   });
 });
